@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<!--
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    Copyright 2016 Quimey Vivas.
+    
+-->
+<meta charset="UTF-8">
+<head>
+    <title>Bejeweled</title>
+  <style>
+    body {
+      padding:0px;
+      text-align:center;
+      margin: 0 auto;
+      max-width: 1000px;
+    }
+    canvas.game{
+      outline:0;
+      border:1px solid #000;
+      
+      margin-right: auto;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1> Bejeweled </h1>
+  <h3>
+    <table align="center" style="width:75%;text-align:center;">
+      <tr>
+        <td>
+          Your Score <div id="your"> 0 </div>
+        </td>
+        <td>
+          High Score <div id="high"> 0 </div>
+        </td>
+        <td>
+          <button text="Restart" onclick="restart()">Restart</>
+        </td>
+      </tr>
+    </table>
+  </h3>
+<p>
+
+<canvas id='game' class="game"></canvas>
+<script type="text/javascript">
+var boardSize = 605, // size of the board in pixels
+  numCells = 8, // size of each board in cells
+  edgeSize = 4, // size of the edge in pixels
+  cellSize = (boardSize - edgeSize) / numCells - edgeSize, // size of the cell, leave space for the frame.
+  dx = [0,-1,0,1], // moves in the horizontal axe
+  dy = [1,0,-1,0], // moves in the vertical axe
+  colors = ['white', 'yellow','pink','red','blue','green', 'purple'], //colors of the cells
+  edgeColor = 'black',
+  numColors = colors.length - 1,
+  boardState = [], // state of the board
+  isCellSelected = false,
+  cellSelectedX = null,
+  cellSelectedY = null,
+  bestScore = -1,
+  score = 0,
+  highScore = 0,
+  your = document.getElementById('your'),
+  high = document.getElementById('high');
+  
+var canvas = document.getElementById('game'), 
+    ctx = canvas.getContext('2d');
+    canvas.width = boardSize;
+    canvas.height = boardSize;
+
+var canvasLeft = canvas.offsetLeft,
+    canvasTop = canvas.offsetTop;
+//////////////////////////////////////////////////////////////////////
+// Bucle infinito que ejecuta el programa
+var GameLoop = function (){
+  render();
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// restart
+var restart = function () {
+  score = 0;
+  setScore(false, 0, 0);
+  init();
+  render();
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// board initialization
+var init = function (){
+  boardState = [];
+  for (var i = 0; i < numCells; i++) {
+    boardState.push([])
+    for (var j = 0; j < numCells; j++) {
+      boardState[i].push(1 + Math.floor(numColors * Math.random()));
+    }
+  }
+  update(false, 0);
+  render();
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// paint cell
+var paintCell = function (cellX, cellY, color) {
+  ctx.fillStyle = color; 
+  ctx.fillRect(
+    cellX * (cellSize + edgeSize) + edgeSize,
+    cellY * (cellSize + edgeSize) + edgeSize,
+    cellSize,
+    cellSize
+  );
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// frame cell
+var frameCell = function (cellX, cellY, color) {
+  ctx.strokeStyle = color; 
+  ctx.lineWidth = edgeSize;
+  ctx.strokeRect(
+    cellX * (cellSize + edgeSize) + edgeSize,
+    cellY * (cellSize + edgeSize) + edgeSize,
+    cellSize,
+    cellSize
+  );
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// clear screen
+var clear = function () {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// board rendering
+var render = function () {
+  for (var i = 0; i < numCells; i++) {
+    for (var j = 0; j < numCells; j++) {
+      paintCell(i, j, colors[boardState[i][j]]);
+    }
+  }
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// click management
+var onClick = function (event){
+  var x = event.pageX - canvasLeft, y = event.pageY - canvasTop;
+  var cellX = Math.floor((x - edgeSize) / (cellSize + edgeSize)),
+      cellY = Math.floor((y - edgeSize) / (cellSize + edgeSize));
+  if (isCellSelected) {
+    if (cellX === cellSelectedX && cellY === cellSelectedY) {
+      cellSelectedX = null;
+      cellSelectedY = null;
+      isCellSelected = false;
+      clear();
+      render();
+    }
+    else if (Math.abs(cellX - cellSelectedX) + Math.abs(cellY - cellSelectedY) < 2) {
+      var auxSwap;
+      auxSwap = boardState[cellX][cellY];
+      boardState[cellX][cellY] = boardState[cellSelectedX][cellSelectedY];
+      boardState[cellSelectedX][cellSelectedY] = auxSwap;
+      if (update(true, 0)) {
+        clear();
+        render();
+        cellSelectedX = null;
+        cellSelectedY = null;
+        isCellSelected = false;
+      } else {
+        auxSwap = boardState[cellX][cellY]; 
+        boardState[cellX][cellY] = boardState[cellSelectedX][cellSelectedY];
+        boardState[cellSelectedX][cellSelectedY] = auxSwap;
+      }
+    }
+  } else {
+    isCellSelected = true;
+    cellSelectedX = cellX;
+    cellSelectedY = cellY;
+    frameCell(cellX, cellY, edgeColor);  
+  }
+}
+
+canvas.addEventListener('click', onClick);
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// move blocks down
+var moveDown = function () {
+  for (var j = numCells - 1; j >= 0; j--) {
+    for (var i = 0; i < numCells; i++) {
+      var k = j;
+      while(k + 1 < numCells && boardState[i][k + 1] === 0) {
+        boardState[i][k + 1] = boardState[i][k];
+        boardState[i][k] = 0;
+        k ++;
+      }
+    }
+  }
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// set score
+var setScore = function (isDrawing, points, depth) {
+  if (isDrawing) {
+    score += points * (depth + 1);
+    highScore = Math.max(score, highScore);
+  }
+  your.innerHTML = score;
+  high.innerHTML = highScore;
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// fill empty cells
+var fillBoard = function () {
+  for (var i = 0; i < numCells; i++) {
+    for (var j = 0; j < numCells; j++) {
+      if(boardState[i][j] === 0) {
+        boardState[i][j] = 1 + Math.floor(numColors * Math.random());
+      }
+    }
+  }
+}
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// update board following the rules
+var update = function (isDrawing, depth) {
+  var cellsToDelete = [];
+  var isUpdated = false;
+  var points = 0;
+  for (var i = 0; i < numCells; i++) {
+    cellsToDelete.push([]);
+    for (var j = 0; j < numCells; j++) {
+      cellsToDelete[i].push(0);
+    }
+  }
+  // detect vertical blocks of 3
+  for (var i = 0; i < numCells; i++) {
+    for (var j = 0; j < numCells - 2; j++) {
+       if (boardState[i][j] === boardState[i][j + 1] &&
+           boardState[i][j + 1] === boardState[i][j + 2]) {
+         cellsToDelete[i][j] = 1;
+         cellsToDelete[i][j + 1] = 1;
+         cellsToDelete[i][j + 2] = 1;
+         isUpdated = true;
+      }
+    }
+  }
+  // detect horizontal blocks of 3
+  for (var i = 0; i < numCells - 2; i++) {
+    for (var j = 0; j < numCells; j++) {
+       if (boardState[i][j] === boardState[i + 1][j] &&
+           boardState[i + 1][j] === boardState[i + 2][j]) {
+         cellsToDelete[i][j] = 1;
+         cellsToDelete[i + 1][j] = 1;
+         cellsToDelete[i + 2][j] = 1;
+         isUpdated = 1;
+       }
+    }
+  }
+  if (isUpdated) {
+    // delete blocks
+    for (var i = 0; i < numCells; i++) {
+      for (var j = 0; j < numCells; j++) {
+        if(cellsToDelete[i][j] === 1) {
+          boardState[i][j] = 0;
+          points ++;
+        }
+      }
+    }
+    // Hacky basic animations
+    var timeout = isDrawing? 500: 0;
+    render();
+    setTimeout(function() {
+      moveDown();
+      render();
+      setTimeout(function() {
+        fillBoard();
+        setScore(isDrawing, points, depth);
+        update(isDrawing, depth + 1);
+        render();
+      }, timeout);
+    }, timeout);
+    return true;
+  }
+  return false;
+}
+//////////////////////////////////////////////////////////////////////
+
+init();
+GameLoop();
+</script>
+</body>
+</html>
+
+
